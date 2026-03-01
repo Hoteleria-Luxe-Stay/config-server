@@ -8,9 +8,9 @@ Servidor de configuración centralizada basado en **Spring Cloud Config Server**
 |-----------|-------|
 | Puerto | 8888 |
 | Java | 21 |
-| Spring Boot | 3.5.7 |
+| Spring Boot | 3.4.0 |
 | Spring Cloud | 2024.0.1 |
-| Modo | Native (archivos locales) |
+| Modo | Git (repositorio remoto) |
 
 ## Estructura del Proyecto
 
@@ -37,13 +37,13 @@ server:
 spring:
   application:
     name: config-server
-  profiles:
-    active: native
   cloud:
     config:
       server:
-        native:
-          search-locations: ${CONFIG_REPO_PATH:file:../config-repo}
+        git:
+          uri: ${CONFIG_REPO_URI}
+          default-label: main
+          clone-on-start: true
 ```
 
 ### Variables de Entorno
@@ -51,7 +51,7 @@ spring:
 | Variable | Descripción | Default |
 |----------|-------------|---------|
 | `SERVER_PORT` | Puerto del servidor | `8888` |
-| `CONFIG_REPO_PATH` | Ruta al repositorio de configuraciones | `file:../config-repo` |
+| `CONFIG_REPO_URI` | URI del repositorio Git de configuraciones | - |
 
 ## Endpoints
 
@@ -150,10 +150,7 @@ services:
       - "8888:8888"
     environment:
       - SERVER_PORT=8888
-      - SPRING_PROFILES_ACTIVE=native
-      - SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS=file:/config-repo
-    volumes:
-      - ../config-repo:/config-repo:ro
+      - CONFIG_REPO_URI=https://github.com/tu-usuario/config-repo.git
     networks:
       - hotel-network
     healthcheck:
@@ -182,8 +179,7 @@ docker build -t config-server:latest .
 docker run -d \
   --name config-server \
   -p 8888:8888 \
-  -v $(pwd)/../config-repo:/config-repo:ro \
-  -e SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS=file:/config-repo \
+  -e CONFIG_REPO_URI=https://github.com/tu-usuario/config-repo.git \
   --network hotel-network \
   config-server:latest
 
@@ -203,7 +199,7 @@ docker stop config-server && docker rm config-server
 
 ### Manifiestos
 
-#### ConfigMap para config-repo
+#### ConfigMap para config-repo (Opcional)
 
 ```yaml
 # k8s/configmap-config-repo.yaml
@@ -255,17 +251,11 @@ spec:
           ports:
             - containerPort: 8888
               name: http
-          env:
-            - name: SERVER_PORT
-              value: "8888"
-            - name: SPRING_PROFILES_ACTIVE
-              value: "native"
-            - name: SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS
-              value: "file:/config-repo"
-          volumeMounts:
-            - name: config-repo
-              mountPath: /config-repo
-              readOnly: true
+           env:
+             - name: SERVER_PORT
+               value: "8888"
+             - name: CONFIG_REPO_URI
+               value: "https://github.com/tu-usuario/config-repo.git"
           resources:
             requests:
               memory: "256Mi"
@@ -297,10 +287,7 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 30
-      volumes:
-        - name: config-repo
-          configMap:
-            name: config-repo-files
+      # Si usas ConfigMap en lugar de Git, agrega volumen y mounts.
 ```
 
 #### Service
@@ -428,7 +415,7 @@ az acr repository show-tags \
 ### 3. Crear ConfigMap desde Archivos Locales
 
 ```bash
-# Crear ConfigMap con los archivos de config-repo
+# Crear ConfigMap con los archivos de config-repo (si usas modo native)
 kubectl create configmap config-repo-files \
   --namespace hotel-system \
   --from-file=api-gateway.yml=../config-repo/api-gateway.yml \
@@ -462,17 +449,11 @@ spec:
           image: acrhotelreservas.azurecr.io/config-server:v1.0.0
           ports:
             - containerPort: 8888
-          env:
-            - name: SERVER_PORT
-              value: "8888"
-            - name: SPRING_PROFILES_ACTIVE
-              value: "native"
-            - name: SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS
-              value: "file:/config-repo"
-          volumeMounts:
-            - name: config-repo
-              mountPath: /config-repo
-              readOnly: true
+           env:
+             - name: SERVER_PORT
+               value: "8888"
+             - name: CONFIG_REPO_URI
+               value: "https://github.com/tu-usuario/config-repo.git"
           resources:
             requests:
               memory: "256Mi"
@@ -492,10 +473,7 @@ spec:
               port: 8888
             initialDelaySeconds: 30
             periodSeconds: 5
-      volumes:
-        - name: config-repo
-          configMap:
-            name: config-repo-files
+       # Si usas ConfigMap en lugar de Git, agrega volumen y mounts.
 ```
 
 ### 5. Desplegar
