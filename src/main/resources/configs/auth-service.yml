@@ -1,0 +1,106 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # ----------------------------------------------------------------
+    # HikariCP tuning (Round 7)
+    # max-lifetime menor al wait_timeout de MySQL (default 28800s) para
+    # forzar reciclaje antes que el server cierre la conexion.
+    # leak-detection: avisa si una conexion no se devuelve al pool en 30s.
+    # ----------------------------------------------------------------
+    hikari:
+      pool-name: ${HIKARI_POOL_NAME:auth-pool}
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:20}
+      minimum-idle: ${HIKARI_MIN_IDLE:5}
+      connection-timeout: ${HIKARI_CONNECTION_TIMEOUT:5000}
+      idle-timeout: ${HIKARI_IDLE_TIMEOUT:300000}
+      max-lifetime: ${HIKARI_MAX_LIFETIME:1500000}
+      validation-timeout: ${HIKARI_VALIDATION_TIMEOUT:2000}
+      leak-detection-threshold: ${HIKARI_LEAK_DETECTION:30000}
+      keepalive-time: ${HIKARI_KEEPALIVE:120000}
+
+  flyway:
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    baseline-on-migrate: ${SPRING_FLYWAY_BASELINE_ON_MIGRATE:false}
+    validate-on-migrate: ${SPRING_FLYWAY_VALIDATE_ON_MIGRATE:true}
+
+  jpa:
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST}
+    port: ${SPRING_RABBITMQ_PORT}
+    username: ${SPRING_RABBITMQ_USERNAME}
+    password: ${SPRING_RABBITMQ_PASSWORD}
+
+app:
+  rabbitmq:
+    sesion:
+      exchange: ${RABBITMQ_SESION_EXCHANGE:hotel.events}
+      login-routing-key: ${RABBITMQ_LOGIN_ROUTING_KEY:user.login}
+      registered-routing-key: ${RABBITMQ_REGISTERED_ROUTING_KEY:user.registered}
+      password-reset-routing-key: ${RABBITMQ_PASSWORD_RESET_ROUTING_KEY:user.password.reset}
+  notifications:
+    sesion:
+      enabled: ${NOTIFICATION_SESION_ENABLED:true}
+
+server:
+  port: ${SERVER_PORT:8081}
+  servlet:
+    context-path: /api/v1
+
+application:
+  security:
+    jwt:
+      private-key: ${JWT_PRIVATE_KEY}
+      public-key: ${JWT_PUBLIC_KEY}
+      expiration: ${JWT_EXPIRATION:3600}
+      refresh-expiration: ${JWT_REFRESH_EXPIRATION:86400}
+    password-reset-expiration-minutes: ${PASSWORD_RESET_EXPIRATION_MINUTES:15}
+    password-reset-max-attempts: ${PASSWORD_RESET_MAX_ATTEMPTS:3}
+    password-reset-block-minutes: ${PASSWORD_RESET_BLOCK_MINUTES:15}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
+
+internal:
+  clients:
+    hotel-service:
+      client-id: ${HOTEL_SERVICE_CLIENT_ID}
+      client-secret: ${HOTEL_SERVICE_CLIENT_SECRET}
+      scope: ${HOTEL_SERVICE_CLIENT_SCOPE:service:hotel}
+    reserva-service:
+      client-id: ${RESERVA_SERVICE_CLIENT_ID}
+      client-secret: ${RESERVA_SERVICE_CLIENT_SECRET}
+      scope: ${RESERVA_SERVICE_CLIENT_SCOPE:service:reserva}
+    notificacion-service:
+      client-id: ${NOTIFICACION_SERVICE_CLIENT_ID}
+      client-secret: ${NOTIFICACION_SERVICE_CLIENT_SECRET}
+      scope: ${NOTIFICACION_SERVICE_CLIENT_SCOPE:service:notificacion}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://discovery-service:8761/eureka}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html

@@ -1,0 +1,97 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # ---- HikariCP tuning (Round 7) ----
+    hikari:
+      pool-name: ${HIKARI_POOL_NAME:pago-pool}
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:20}
+      minimum-idle: ${HIKARI_MIN_IDLE:5}
+      connection-timeout: ${HIKARI_CONNECTION_TIMEOUT:5000}
+      idle-timeout: ${HIKARI_IDLE_TIMEOUT:300000}
+      max-lifetime: ${HIKARI_MAX_LIFETIME:1500000}
+      validation-timeout: ${HIKARI_VALIDATION_TIMEOUT:2000}
+      leak-detection-threshold: ${HIKARI_LEAK_DETECTION:30000}
+      keepalive-time: ${HIKARI_KEEPALIVE:120000}
+
+  flyway:
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    baseline-on-migrate: ${SPRING_FLYWAY_BASELINE_ON_MIGRATE:false}
+    validate-on-migrate: ${SPRING_FLYWAY_VALIDATE_ON_MIGRATE:true}
+
+  jpa:
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+
+server:
+  port: ${SERVER_PORT:8085}
+  servlet:
+    context-path: /api/v1
+
+application:
+  security:
+    jwt:
+      public-key: ${JWT_PUBLIC_KEY}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
+
+stripe:
+  secret-key: ${STRIPE_SECRET_KEY}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET}
+
+app:
+  pago:
+    default-currency: ${PAGO_DEFAULT_CURRENCY:USD}
+    success-url: ${PAGO_SUCCESS_URL:http://localhost:4200/reservas/success}
+    cancel-url: ${PAGO_CANCEL_URL:http://localhost:4200/reservas/cancel}
+  kafka:
+    topics:
+      pago-events: ${KAFKA_PAGO_EVENTS_TOPIC:pago.events}
+  # ----------------------------------------------------------------
+  # Outbox Pattern (Round 6) — resuelve dual-write Kafka + DB.
+  # El relay job publica en lotes; el cleanup borra los enviados +7d.
+  # ----------------------------------------------------------------
+  outbox:
+    batch-size: ${OUTBOX_BATCH_SIZE:100}
+    send-timeout-ms: ${OUTBOX_SEND_TIMEOUT_MS:5000}
+    relay:
+      fixed-delay-ms: ${OUTBOX_RELAY_FIXED_DELAY_MS:2000}
+      initial-delay-ms: ${OUTBOX_RELAY_INITIAL_DELAY_MS:5000}
+    cleanup:
+      cron: ${OUTBOX_CLEANUP_CRON:0 0 3 * * *}
+      retention-days: ${OUTBOX_CLEANUP_RETENTION_DAYS:7}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://discovery-service:8761/eureka}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html

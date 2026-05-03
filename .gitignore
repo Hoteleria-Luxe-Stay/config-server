@@ -6,6 +6,11 @@ out/
 # Maven
 target/
 
+#Eclipse
+.classpath
+.project
+.settings/
+
 # Logs
 *.log
 
@@ -19,3 +24,4 @@ Thumbs.db
 # Node (por si usas frontend)
 node_modules/
 dist/
+
