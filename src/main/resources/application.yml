@@ -6,6 +6,11 @@ spring:
     name: config-server
   profiles:
     active: native
+  security:
+    user:
+      name: ${CONFIG_SERVER_USER:config-admin}
+      password: ${CONFIG_SERVER_PASSWORD:dev-only-pass-change-me}
+      roles: CONFIG_CLIENT
   cloud:
     config:
       server:

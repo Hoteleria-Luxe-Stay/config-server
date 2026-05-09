@@ -39,6 +39,9 @@ application:
   security:
     jwt:
       public-key: ${JWT_PUBLIC_KEY}
+      # Round 9 hardening: validar iss + aud en cada JWT entrante.
+      issuer: ${JWT_ISSUER:luxe-stay-auth}
+      audience: ${JWT_AUDIENCE:luxe-stay-services}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS}
 
@@ -51,7 +54,8 @@ internal:
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_URL:http://discovery-service:8761/eureka}
+      # Round 9 hardening: Eureka con basic auth. Creds embebidas en URL.
+      defaultZone: ${EUREKA_URL:http://eureka-admin:dev-only-pass-change-me@discovery-service:8761/eureka}
 
 management:
   endpoints:

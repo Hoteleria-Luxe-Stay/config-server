@@ -64,6 +64,9 @@ application:
       public-key: ${JWT_PUBLIC_KEY}
       expiration: ${JWT_EXPIRATION:3600}
       refresh-expiration: ${JWT_REFRESH_EXPIRATION:86400}
+      # Round 9: iss + aud emitidos en cada token. Validators los chequean en ronda final.
+      issuer: ${JWT_ISSUER:luxe-stay-auth}
+      audience: ${JWT_AUDIENCE:luxe-stay-services}
     password-reset-expiration-minutes: ${PASSWORD_RESET_EXPIRATION_MINUTES:15}
     password-reset-max-attempts: ${PASSWORD_RESET_MAX_ATTEMPTS:3}
     password-reset-block-minutes: ${PASSWORD_RESET_BLOCK_MINUTES:15}
@@ -88,7 +91,8 @@ internal:
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_URL:http://discovery-service:8761/eureka}
+      # Round 9 hardening: Eureka con basic auth. Creds embebidas en URL.
+      defaultZone: ${EUREKA_URL:http://eureka-admin:dev-only-pass-change-me@discovery-service:8761/eureka}
 
 management:
   endpoints:

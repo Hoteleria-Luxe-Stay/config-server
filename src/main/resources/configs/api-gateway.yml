@@ -166,6 +166,26 @@ spring:
           predicates:
             - Path=/api/v1/plantillas/**
 
+        # ============================================================
+        # PAGO — webhook publico (sin JWT, validado por HMAC en ms-pago).
+        # Rate limit DEDICADO por IP: si MP nos envia un retry storm o
+        # un atacante intenta saturarnos con payloads basura, frenamos
+        # antes de gastar CPU en HMAC + queries a MP API.
+        # IMPORTANTE: esta route DEBE ir antes de pago-service para que
+        # matchee primero (Spring Cloud Gateway respeta orden).
+        # ============================================================
+        - id: pago-service-webhook
+          uri: lb://pago-service
+          predicates:
+            - Path=/api/v1/pagos/webhook/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${RATE_LIMIT_WEBHOOK_REPLENISH:5}
+                redis-rate-limiter.burstCapacity: ${RATE_LIMIT_WEBHOOK_BURST:10}
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@ipKeyResolver}"
+
         - id: pago-service
           uri: lb://pago-service
           predicates:
@@ -187,6 +207,9 @@ application:
   security:
     jwt:
       public-key: ${JWT_PUBLIC_KEY}
+      # Round 9 hardening: validar iss + aud en cada JWT entrante.
+      issuer: ${JWT_ISSUER:luxe-stay-auth}
+      audience: ${JWT_AUDIENCE:luxe-stay-services}
 
 # ----------------------------------------------------------------------------
 # Idempotency-Key (Round 5.3)
@@ -203,7 +226,8 @@ idempotency:
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_URL:http://discovery-service:8761/eureka}
+      # Round 9 hardening: Eureka con basic auth. Creds embebidas en URL.
+      defaultZone: ${EUREKA_URL:http://eureka-admin:dev-only-pass-change-me@discovery-service:8761/eureka}
 
 management:
   endpoints:

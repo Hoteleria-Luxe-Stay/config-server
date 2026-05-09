@@ -47,16 +47,25 @@ application:
   security:
     jwt:
       public-key: ${JWT_PUBLIC_KEY}
+      # Round 9 hardening: validar iss + aud en cada JWT entrante.
+      issuer: ${JWT_ISSUER:luxe-stay-auth}
+      audience: ${JWT_AUDIENCE:luxe-stay-services}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS}
 
-stripe:
-  secret-key: ${STRIPE_SECRET_KEY}
-  webhook-secret: ${STRIPE_WEBHOOK_SECRET}
+mercadopago:
+  access-token: ${MERCADOPAGO_ACCESS_TOKEN}
+  webhook-secret: ${MERCADOPAGO_WEBHOOK_SECRET}
+  # URL publica (ngrok en local, dominio HTTPS en prod) que MP llama para notificar pagos.
+  notification-url: ${MERCADOPAGO_NOTIFICATION_URL}
+  # Flag explicita: true en local con access token TEST (usa sandboxInitPoint y NO
+  # setea auto_return porque las back_urls son localhost). false en prod con access
+  # token PROD (usa initPoint y activa auto_return="approved"). Default: false (prod).
+  use-sandbox: ${MERCADOPAGO_USE_SANDBOX:false}
 
 app:
   pago:
-    default-currency: ${PAGO_DEFAULT_CURRENCY:USD}
+    default-currency: ${PAGO_DEFAULT_CURRENCY:PEN}
     success-url: ${PAGO_SUCCESS_URL:http://localhost:4200/reservas/success}
     cancel-url: ${PAGO_CANCEL_URL:http://localhost:4200/reservas/cancel}
   kafka:
@@ -69,6 +78,7 @@ app:
   outbox:
     batch-size: ${OUTBOX_BATCH_SIZE:100}
     send-timeout-ms: ${OUTBOX_SEND_TIMEOUT_MS:5000}
+    max-attempts: ${OUTBOX_MAX_ATTEMPTS:10}
     relay:
       fixed-delay-ms: ${OUTBOX_RELAY_FIXED_DELAY_MS:2000}
       initial-delay-ms: ${OUTBOX_RELAY_INITIAL_DELAY_MS:5000}
@@ -79,7 +89,8 @@ app:
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_URL:http://discovery-service:8761/eureka}
+      # Round 9 hardening: Eureka con basic auth. Creds embebidas en URL.
+      defaultZone: ${EUREKA_URL:http://eureka-admin:dev-only-pass-change-me@discovery-service:8761/eureka}
 
 management:
   endpoints:
