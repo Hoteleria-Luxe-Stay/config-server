@@ -100,10 +100,59 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,circuitbreakers,circuitbreakerevents,retries,retryevents
   endpoint:
     health:
       show-details: always
+  health:
+    circuitbreakers:
+      enabled: true
+
+# ----------------------------------------------------------------------------
+# Resilience4j — protege llamadas al SDK de MercadoPago (createCheckoutSession,
+# verifyAndResolveWebhook). Si MP API se ralentiza o falla, el CB abre y los
+# siguientes calls reciben fail-fast via fallback method en MercadoPagoGateway.
+#
+# slowCallDurationThreshold: 30s → MP API puede tardar legitimamente 5-15s
+#   bajo carga; consideramos slow >30s para evitar abrir el CB sin necesidad.
+# recordExceptions: solo PagoGatewayException — MP-specific failures cuentan.
+# ignoreExceptions: WebhookValidationException — HMAC malo es culpa del request,
+#   NO del downstream; no cuenta como falla del CB.
+# Retry: 3 intentos con espera de 1s entre cada uno (default exponential).
+# ----------------------------------------------------------------------------
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 30s
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        recordExceptions:
+          - com.hotel.pago.helpers.exceptions.PagoGatewayException
+        ignoreExceptions:
+          - com.hotel.pago.helpers.exceptions.WebhookValidationException
+    instances:
+      cb-mercadopago:
+        baseConfig: default
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1s
+        retryExceptions:
+          - com.hotel.pago.helpers.exceptions.PagoGatewayException
+        ignoreExceptions:
+          - com.hotel.pago.helpers.exceptions.WebhookValidationException
+    instances:
+      cb-mercadopago:
+        baseConfig: default
 
 springdoc:
   api-docs:
