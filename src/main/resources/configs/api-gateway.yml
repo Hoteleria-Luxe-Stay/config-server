@@ -37,6 +37,7 @@ spring:
         # ============================================================
         # AUTH — endpoints publicos sensibles (rate limit por IP)
         # Orden: las mas especificas primero (Spring Cloud Gateway matchea por orden)
+        # CircuitBreaker dedicado: cb-auth — aislamiento por servicio downstream.
         # ============================================================
         - id: auth-password-reset
           uri: lb://auth-service
@@ -49,6 +50,10 @@ spring:
                 redis-rate-limiter.burstCapacity: 3
                 redis-rate-limiter.requestedTokens: 1
                 key-resolver: "#{@ipKeyResolver}"
+            - name: CircuitBreaker
+              args:
+                name: cb-auth
+                fallbackUri: forward:/fallback/auth-service
 
         - id: auth-login-register
           uri: lb://auth-service
@@ -61,11 +66,20 @@ spring:
                 redis-rate-limiter.burstCapacity: 5
                 redis-rate-limiter.requestedTokens: 1
                 key-resolver: "#{@ipKeyResolver}"
+            - name: CircuitBreaker
+              args:
+                name: cb-auth
+                fallbackUri: forward:/fallback/auth-service
 
         - id: auth-service
           uri: lb://auth-service
           predicates:
             - Path=/api/v1/auth/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: cb-auth
+                fallbackUri: forward:/fallback/auth-service
 
         - id: auth-service-oauth
           uri: lb://auth-service
@@ -78,66 +92,121 @@ spring:
                 redis-rate-limiter.burstCapacity: 15
                 redis-rate-limiter.requestedTokens: 1
                 key-resolver: "#{@ipKeyResolver}"
+            - name: CircuitBreaker
+              args:
+                name: cb-auth
+                fallbackUri: forward:/fallback/auth-service
 
         - id: auth-service-users
           uri: lb://auth-service
           predicates:
             - Path=/api/v1/users/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: cb-auth
+                fallbackUri: forward:/fallback/auth-service
 
         # ============================================================
-        # HOTELES — lectura publica (rate limit por IP)
+        # HOTELES — lectura publica. CircuitBreaker dedicado: cb-hotel.
         # ============================================================
         - id: hotel-service-hoteles
           uri: lb://hotel-service
           predicates:
             - Path=/api/v1/hoteles/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: cb-hotel
+                fallbackUri: forward:/fallback/hotel-service
 
         - id: hotel-service-departamentos
           uri: lb://hotel-service
           predicates:
             - Path=/api/v1/departamentos/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: cb-hotel
+                fallbackUri: forward:/fallback/hotel-service
 
         - id: hotel-service-habitaciones
           uri: lb://hotel-service
           predicates:
             - Path=/api/v1/habitaciones/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: cb-hotel
+                fallbackUri: forward:/fallback/hotel-service
 
         - id: hotel-service-tipos
           uri: lb://hotel-service
           predicates:
             - Path=/api/v1/tipos-habitacion/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: cb-hotel
+                fallbackUri: forward:/fallback/hotel-service
 
         # ============================================================
-        # RESERVAS — autenticadas (rate limit por userId)
+        # RESERVAS — autenticadas. CircuitBreaker dedicado: cb-reserva.
         # ============================================================
         - id: reserva-service-reservas
           uri: lb://reserva-service
           predicates:
             - Path=/api/v1/reservas/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: cb-reserva
+                fallbackUri: forward:/fallback/reserva-service
 
         - id: reserva-service-mis-reservas
           uri: lb://reserva-service
           predicates:
             - Path=/api/v1/mis-reservas/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: cb-reserva
+                fallbackUri: forward:/fallback/reserva-service
 
         - id: reserva-service-clientes
           uri: lb://reserva-service
           predicates:
             - Path=/api/v1/clientes/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: cb-reserva
+                fallbackUri: forward:/fallback/reserva-service
 
         - id: reserva-service-dashboard
           uri: lb://reserva-service
           predicates:
             - Path=/api/v1/dashboard/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: cb-reserva
+                fallbackUri: forward:/fallback/reserva-service
 
         - id: reserva-service-admin
           uri: lb://reserva-service
           predicates:
             - Path=/api/v1/admin/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: cb-reserva
+                fallbackUri: forward:/fallback/reserva-service
 
         # ============================================================
         # NOTIFICACIONES — autenticadas (rate limit por userId)
-        # /contacto es publico — overridemos a IP
+        # /contacto es publico — overridemos a IP.
+        # CircuitBreaker dedicado: cb-notificacion.
         # ============================================================
         - id: notificacion-service-contacto
           uri: lb://notificacion-service
@@ -150,21 +219,40 @@ spring:
                 redis-rate-limiter.burstCapacity: 3
                 redis-rate-limiter.requestedTokens: 1
                 key-resolver: "#{@ipKeyResolver}"
+            - name: CircuitBreaker
+              args:
+                name: cb-notificacion
+                fallbackUri: forward:/fallback/notificacion-service
 
         - id: notificacion-service
           uri: lb://notificacion-service
           predicates:
             - Path=/api/v1/notificaciones/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: cb-notificacion
+                fallbackUri: forward:/fallback/notificacion-service
 
         - id: notificacion-service-mis
           uri: lb://notificacion-service
           predicates:
             - Path=/api/v1/mis-notificaciones/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: cb-notificacion
+                fallbackUri: forward:/fallback/notificacion-service
 
         - id: notificacion-service-plantillas
           uri: lb://notificacion-service
           predicates:
             - Path=/api/v1/plantillas/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: cb-notificacion
+                fallbackUri: forward:/fallback/notificacion-service
 
         # ============================================================
         # PAGO — webhook publico (sin JWT, validado por HMAC en ms-pago).
@@ -173,6 +261,7 @@ spring:
         # antes de gastar CPU en HMAC + queries a MP API.
         # IMPORTANTE: esta route DEBE ir antes de pago-service para que
         # matchee primero (Spring Cloud Gateway respeta orden).
+        # CircuitBreaker dedicado: cb-pago.
         # ============================================================
         - id: pago-service-webhook
           uri: lb://pago-service
@@ -185,16 +274,26 @@ spring:
                 redis-rate-limiter.burstCapacity: ${RATE_LIMIT_WEBHOOK_BURST:10}
                 redis-rate-limiter.requestedTokens: 1
                 key-resolver: "#{@ipKeyResolver}"
+            - name: CircuitBreaker
+              args:
+                name: cb-pago
+                fallbackUri: forward:/fallback/pago-service
 
         - id: pago-service
           uri: lb://pago-service
           predicates:
             - Path=/api/v1/pagos/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: cb-pago
+                fallbackUri: forward:/fallback/pago-service
 
-      # default-filters aplican a TODAS las routes que no tienen un override.
-      # El RequestRateLimiter aca usa el userKeyResolver default (@Primary) que
-      # cae a IP cuando no hay JWT. Rates: 10 req/s, burst 30 — generoso para
-      # navegacion normal, frena scraping.
+      # default-filters aplican a TODAS las routes. Solo dejamos los
+      # transversales (rate-limit + dedupe). El CircuitBreaker NO va aca:
+      # cada route define su CB dedicado por servicio downstream
+      # (cb-auth, cb-hotel, cb-reserva, cb-pago, cb-notificacion). Asi
+      # un servicio caido (ej. pago) no abre el circuito de los demas.
       default-filters:
         - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
         - name: RequestRateLimiter
@@ -202,6 +301,34 @@ spring:
             redis-rate-limiter.replenishRate: ${RATE_LIMIT_DEFAULT_REPLENISH:10}
             redis-rate-limiter.burstCapacity: ${RATE_LIMIT_DEFAULT_BURST:30}
             redis-rate-limiter.requestedTokens: 1
+
+# Resilience4j - configuracion compartida + 1 instancia por servicio downstream.
+# Aislamiento bulkhead: si un servicio se cae, su CB abre sin tumbar a los otros.
+# Sliding window basado en 10 calls; si >50% fallan o lentas (>5s), abre.
+# En estado open, todas las requests van directo a fallbackUri por 30s, despues
+# pasa a half-open (permite algunas requests de prueba). Si pasan, vuelve a closed.
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        permitted-number-of-calls-in-half-open-state: 3
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 5s
+        wait-duration-in-open-state: 30s
+        automatic-transition-from-open-to-half-open-enabled: true
+    instances:
+      cb-auth:
+        base-config: default
+      cb-hotel:
+        base-config: default
+      cb-reserva:
+        base-config: default
+      cb-pago:
+        base-config: default
+      cb-notificacion:
+        base-config: default
 
 application:
   security:
