@@ -17,11 +17,38 @@ spring:
         native:
           search-locations: classpath:/configs/
 
+# ============================================================================
+# Observability (Round 10) — management endpoints + Micrometer + OTel SDK
+# config-server es bootstrap-only (sirve YAMLs). Util igualmente para tener:
+# - /actuator/health (liveness/readiness en compose)
+# - /actuator/prometheus (metricas JVM + HTTP del propio config-server)
+# - tracing de requests entrantes de los services al fetch config
+# ============================================================================
 management:
+  server:
+    port: ${MANAGEMENT_SERVER_PORT:9100}
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,prometheus,httpexchanges
   endpoint:
     health:
       show-details: always
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  tracing:
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING:1.0}
+    enabled: true
+  observations:
+    annotations:
+      enabled: true
+
+logging:
+  pattern:
+    correlation: "[%X{traceId:-},%X{spanId:-}] "
+  level:
+    io.opentelemetry: ${LOG_LEVEL_OTEL:INFO}
+    io.micrometer.tracing: ${LOG_LEVEL_TRACING:INFO}

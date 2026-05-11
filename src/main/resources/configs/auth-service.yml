@@ -94,14 +94,53 @@ eureka:
       # Round 9 hardening: Eureka con basic auth. Creds embebidas en URL.
       defaultZone: ${EUREKA_URL:http://eureka-admin:dev-only-pass-change-me@discovery-service:8761/eureka}
 
+# ============================================================================
+# Observability (Round 10) — management endpoints + Micrometer + OTel SDK
+#
+# - server.port: 9100 (Opcion C) — actuator separado del puerto de la app (8081).
+#   Solo accesible desde la red interna (UFW limita 9100 a 146.181.62.223 = DevOps).
+# - exposure.include: health,info,metrics,prometheus,httpexchanges — endpoints
+#   minimos para observability sin filtrar info sensible.
+# - prometheus.metrics.export.enabled: registra el endpoint /actuator/prometheus.
+# - tracing.sampling.probability: 1.0 (100%) en test/dev. En prod a alto trafico
+#   bajar a 0.1 (10%) para no saturar Tempo. Override via env var.
+# - observations.annotations.enabled: habilita @Observed en metodos custom.
+#
+# La instrumentacion automatica (HTTP server, RestTemplate, RabbitMQ, JDBC)
+# viene del classpath: micrometer-tracing-bridge-otel + opentelemetry-exporter-otlp.
+# El destino OTLP esta en env vars del compose: OTEL_EXPORTER_OTLP_ENDPOINT.
+# ============================================================================
 management:
+  server:
+    port: ${MANAGEMENT_SERVER_PORT:9100}
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus,httpexchanges
   endpoint:
     health:
       show-details: always
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  tracing:
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING:1.0}
+    enabled: true
+  observations:
+    annotations:
+      enabled: true
+
+# Logging pattern incluye [traceId,spanId] automaticamente cuando esta presente
+# micrometer-tracing-bridge-otel en el classpath. Spring Boot agrega los MDC keys
+# trace_id y span_id al pattern por default. Mantener default es lo mas simple.
+logging:
+  pattern:
+    correlation: "[%X{traceId:-},%X{spanId:-}] "
+  level:
+    io.opentelemetry: ${LOG_LEVEL_OTEL:INFO}
+    io.micrometer.tracing: ${LOG_LEVEL_TRACING:INFO}
 
 springdoc:
   api-docs:

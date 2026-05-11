@@ -356,18 +356,40 @@ eureka:
       # Round 9 hardening: Eureka con basic auth. Creds embebidas en URL.
       defaultZone: ${EUREKA_URL:http://eureka-admin:dev-only-pass-change-me@discovery-service:8761/eureka}
 
+# ============================================================================
+# Observability (Round 10) — management endpoints + Micrometer + OTel SDK
+# Diferencia con MVC services: api-gateway es WebFlux. NO incluir 'httpexchanges'
+# (es feature de Spring MVC). El tracing reactivo viene del bridge OTel.
+# ============================================================================
 management:
+  server:
+    port: ${MANAGEMENT_SERVER_PORT:9100}
   endpoints:
     web:
       exposure:
-        include: health,info,gateway
+        include: health,info,metrics,prometheus,gateway
   endpoint:
     health:
       show-details: always
     gateway:
       enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  tracing:
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING:1.0}
+    enabled: true
+  observations:
+    annotations:
+      enabled: true
 
 logging:
+  pattern:
+    correlation: "[%X{traceId:-},%X{spanId:-}] "
   level:
     org.springframework.cloud.gateway: ${LOG_LEVEL_GATEWAY:INFO}
     reactor.netty: ${LOG_LEVEL_NETTY:INFO}
+    io.opentelemetry: ${LOG_LEVEL_OTEL:INFO}
+    io.micrometer.tracing: ${LOG_LEVEL_TRACING:INFO}
